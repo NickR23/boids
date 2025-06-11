@@ -7,20 +7,20 @@
 #include <raylib.h>
 
 struct Roid {
-  double x;
-  double y;
-  double vx; // velocity
-  double vy; // velocity
+  float x;
+  float y;
+  float vx; // velocity
+  float vy; // velocity
 
-  double seperationRange;
-  double avoidFactor;
-  double visualRange;
-  double alignmentFactor;
-  double gatheringFactor;
-  double turnFactor;
+  float seperationRange;
+  float avoidFactor;
+  float visualRange;
+  float alignmentFactor;
+  float gatheringFactor;
+  float turnFactor;
 
-  double maxSpeed;
-  double minSpeed;
+  float maxSpeed;
+  float minSpeed;
 
   std::pair<int, int> xMargin;
   std::pair<int, int> yMargin;
@@ -38,26 +38,26 @@ struct Options {
   int maxSpeed;
   int minSpeed; 
 
-  double minSepRange;
-  double maxSepRange;
+  float minSepRange;
+  float maxSepRange;
 
-  double minAvoidFactor;
-  double maxAvoidFactor;
+  float minAvoidFactor;
+  float maxAvoidFactor;
 
-  double minVisualRange;
-  double maxVisualRange;
+  float minVisualRange;
+  float maxVisualRange;
 
-  double minAlignmentFactor;
-  double maxAlignmentFactor;
+  float minAlignmentFactor;
+  float maxAlignmentFactor;
 
-  double minGatheringFactor;
-  double maxGatheringFactor;
+  float minGatheringFactor;
+  float maxGatheringFactor;
 
-  double minTurnFactor;
-  double maxTurnFactor;
+  float minTurnFactor;
+  float maxTurnFactor;
 
-  double minMaxSpeed;
-  double maxMaxSpeed;
+  float minMaxSpeed;
+  float maxMaxSpeed;
 
   std::pair<int, int> minXMargin; // {minLeftMargin, minRightMargin}
   std::pair<int, int> maxXMargin; // {maxLeftMargin, maxRightMargin}
@@ -65,10 +65,10 @@ struct Options {
   std::pair<int, int> maxYMargin; // {maxBottomMargin, maxTopMargin}
 };
 
-double getRandom(double min, double max) {
+float getRandom(float min, float max) {
   static std::random_device rd;
   static std::mt19937 gen(rd());
-  std::uniform_real_distribution<double> dis(min, max);
+  std::uniform_real_distribution<float> dis(min, max);
   return dis(gen);
 }
 
@@ -82,16 +82,16 @@ void drawRoids(const World& world) {
   EndDrawing();
 }
 
-double getDistance(const Roid& boid, const Roid& other) {
-  double dx = boid.x - other.x;
-  double dy = boid.y - other.y;
+float getDistance(const Roid& boid, const Roid& other) {
+  float dx = boid.x - other.x;
+  float dy = boid.y - other.y;
   return std::sqrt(dx * dx + dy * dy);
 }
 
 // Reacts to other boids with seperationRange. Returns the new velocity vector after seperation.
-std::pair<double, double> seperate(const Roid& boid, const std::vector<Roid>& flock) {
-  double close_dx = 0;
-  double close_dy = 0;
+std::pair<float, float> seperate(const Roid& boid, const std::vector<Roid>& flock) {
+  float close_dx = 0;
+  float close_dy = 0;
   for (const Roid& other : flock) {
     if (&boid == &other) continue;
     if (getDistance(boid, other) <= boid.seperationRange) {
@@ -100,15 +100,15 @@ std::pair<double, double> seperate(const Roid& boid, const std::vector<Roid>& fl
     }
   }
 
-  double dvx = close_dx * boid.avoidFactor;
-  double dvy = close_dy * boid.avoidFactor;
+  float dvx = close_dx * boid.avoidFactor;
+  float dvy = close_dy * boid.avoidFactor;
   return {dvx, dvy};
 }
 
 // Reacts to other boids with visualRange. Returns the new velocity vector after seperation.
-std::pair<double, double> align(const Roid& boid, const std::vector<Roid>& flock) {
-  double vx_avg = 0;
-  double vy_avg = 0;
+std::pair<float, float> align(const Roid& boid, const std::vector<Roid>& flock) {
+  float vx_avg = 0;
+  float vy_avg = 0;
   int neighbors = 0;
   for (const Roid& other : flock) {
     if (&boid == &other) continue;
@@ -123,15 +123,15 @@ std::pair<double, double> align(const Roid& boid, const std::vector<Roid>& flock
     vy_avg = vy_avg / neighbors;
   }
 
-  double dvx = (vx_avg - boid.vx) * boid.alignmentFactor;
-  double dvy = (vy_avg - boid.vy) * boid.alignmentFactor;
+  float dvx = (vx_avg - boid.vx) * boid.alignmentFactor;
+  float dvy = (vy_avg - boid.vy) * boid.alignmentFactor;
   return {dvx, dvy};
 }
 
 // Reacts to other boids with visualRange. Returns the new velocity vector after seperation.
-std::pair<double, double> gather(const Roid& boid, const std::vector<Roid>& flock) {
-  double x_avg = 0;
-  double y_avg = 0;
+std::pair<float, float> gather(const Roid& boid, const std::vector<Roid>& flock) {
+  float x_avg = 0;
+  float y_avg = 0;
   int neighbors = 0;
   for (const Roid& other : flock) {
     if (&boid == &other) continue;
@@ -147,15 +147,15 @@ std::pair<double, double> gather(const Roid& boid, const std::vector<Roid>& floc
     y_avg = y_avg / neighbors;
   }
 
-  double dx = (x_avg - boid.x) * boid.gatheringFactor;
-  double dy = (y_avg - boid.y) * boid.gatheringFactor;
+  float dx = (x_avg - boid.x) * boid.gatheringFactor;
+  float dy = (y_avg - boid.y) * boid.gatheringFactor;
   return {dx, dy};
 }
 
 // Reacts to the edges of the boids margins. Returns the NEW VELOCITY (not DELTA).
-std::pair<double, double> avoidMargin(const Roid& boid, int xBound, int yBound) {
-  double nvx = boid.vx;
-  double nvy = boid.vy;
+std::pair<float, float> avoidMargin(const Roid& boid, int xBound, int yBound) {
+  float nvx = boid.vx;
+  float nvy = boid.vy;
 
   if (boid.x < 0 + boid.xMargin.first) nvx += boid.turnFactor;
   if (boid.x > xBound - boid.xMargin.second) nvx -= boid.turnFactor;
@@ -165,10 +165,10 @@ std::pair<double, double> avoidMargin(const Roid& boid, int xBound, int yBound) 
   return {nvx, nvy};
 }
 
-std::pair<double, double> checkSpeed(const Roid& boid) {
-  double speed = sqrt(boid.vx * boid.vx + boid.vy * boid.vy);
-  double vx_new = boid.vx;
-  double vy_new = boid.vy;
+std::pair<float, float> checkSpeed(const Roid& boid) {
+  float speed = sqrt(boid.vx * boid.vx + boid.vy * boid.vy);
+  float vx_new = boid.vx;
+  float vy_new = boid.vy;
   if (speed == 0) return {boid.vx + 2, boid.vy + 2};
   if (speed > boid.maxSpeed) {
     vx_new = (boid.vx / speed) * boid.maxSpeed;
@@ -184,7 +184,7 @@ void processRoids(World& world) {
   // Tick each boid's clock
   for (Roid& boid : world.boids) {
     // Seperation
-    std::pair<double, double> deltaV = seperate(boid, world.boids);
+    std::pair<float, float> deltaV = seperate(boid, world.boids);
     boid.vx += deltaV.first;
     boid.vy += deltaV.second;
     // Alignment
@@ -196,7 +196,7 @@ void processRoids(World& world) {
     boid.vx += deltaV.first;
     boid.vy += deltaV.second;
     // Avoid edge
-    std::pair<double, double> newV = avoidMargin(boid, world.xBound, world.yBound);
+    std::pair<float, float> newV = avoidMargin(boid, world.xBound, world.yBound);
     boid.vx = newV.first;
     boid.vy = newV.second;
     // Check speed
@@ -216,7 +216,7 @@ void processRoids(World& world) {
 
 // Should world be limited to this scope??
 void mainLoop(World& world) {
-  InitWindow(800, 800, "Boids");
+  InitWindow(world.xBound, world.yBound, "Boids");
   SetTargetFPS(60);
   while (!WindowShouldClose()) {
     processRoids(world);
@@ -228,19 +228,19 @@ void mainLoop(World& world) {
 
 void run(const Options& options) {
  World world;
- world.xBound = 800;
- world.yBound = 800;
+ world.xBound = 900;
+ world.yBound = 900;
 
  for (int i = 0; i < options.numRoids; i++) {
    // Random position across screen
-   double x = getRandom(50, 750);
-   double y = getRandom(50, 750);
+   float x = getRandom(50, 750);
+   float y = getRandom(50, 750);
 
    // Random velocity with proper direction and speed
-   double angle = getRandom(0, 6.28318530718); // 0 to 2π radians
-   double speed = getRandom(options.minSpeed, options.maxSpeed);
-   double vx = speed * std::cos(angle);
-   double vy = speed * std::sin(angle);
+   float angle = getRandom(0, 6.28318530718); // 0 to 2π radians
+   float speed = getRandom(options.minSpeed, options.maxSpeed);
+   float vx = speed * std::cos(angle);
+   float vy = speed * std::sin(angle);
 
    Roid boid{
      x, y,     // Position
@@ -253,10 +253,8 @@ void run(const Options& options) {
      0.3,      // turnFactor
      3,        // maxSpeed
      1,        // minSpeed
-     {getRandom(options.minXMargin.first, options.maxXMargin.first),
-      getRandom(options.minXMargin.second, options.maxXMargin.second)}, // xMargin
-     {getRandom(options.minYMargin.first, options.maxYMargin.first),
-      getRandom(options.minYMargin.second, options.maxYMargin.second)}  // yMargin
+     {100, 100},
+     {100, 100}
    };
 
    world.boids.push_back(boid);
@@ -267,18 +265,13 @@ void run(const Options& options) {
 
 int main() {
   Options options;
-  options.numRoids = 900;
+  options.numRoids = 500;
   options.maxSpeed = 3;
   options.minSpeed = 2;
   options.maxTurnFactor = 0.2;
   options.minTurnFactor = 0.2;
   options.minVisualRange = 20;
   options.maxVisualRange = 20;
-  options.minXMargin = {100, 100};
-  options.maxXMargin = {100, 100};
-
-  options.minYMargin = {100, 100};
-  options.maxYMargin = {100, 100};
 
   run(options);
   return 0;
