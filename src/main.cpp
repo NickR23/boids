@@ -9,7 +9,6 @@
 #define NS_PRIVATE_IMPLEMENTATION
 #define MTL_PRIVATE_IMPLEMENTATION
 #include <Metal/Metal.hpp>
-using namespace metal;
 
 struct Roid {
   float position[2]; // x, y
@@ -28,10 +27,10 @@ struct Roid {
   float margins[4]; // {Left, Right, Bottom Top}
 };
 
-struct World {
+struct WorldParams {
   std::vector<Roid> boids;
-  int xBound;
-  int yBound;
+  float xBound;
+  float yBound;
 };
 
 struct Options {
@@ -74,7 +73,7 @@ float getRandom(float min, float max) {
   return dis(gen);
 }
 
-void drawRoids(const World& world) {
+void drawRoids(const WorldParams& world) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
   for (const Roid& boid : world.boids) {
@@ -182,7 +181,7 @@ std::pair<float, float> checkSpeed(const Roid& boid) {
   return {vx_new, vy_new};
 }
 
-void processRoids(World& world) {
+void processRoids(WorldParams& world) {
   // Tick each boid's clock
   for (Roid& boid : world.boids) {
     // Seperation
@@ -217,7 +216,7 @@ void processRoids(World& world) {
 }
 
 // Should world be limited to this scope??
-void mainLoop(World& world) {
+void mainLoop(WorldParams& world) {
   InitWindow(world.xBound, world.yBound, "Boids");
   SetTargetFPS(60);
   while (!WindowShouldClose()) {
@@ -229,7 +228,7 @@ void mainLoop(World& world) {
 }
 
 void run(const Options& options) {
- World world;
+ WorldParams world;
  world.xBound = 900;
  world.yBound = 900;
 
