@@ -1,0 +1,53 @@
+# Clang format files
+.clang-format
+.clang-tidy
+.clangd
+compile_commands.json
+.cache/
+
+# Compiled Object files
+*.o
+*.obj
+*.lo
+*.slo
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.a
+*.la
+*.lai
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build directories
+build/
+bin/
+obj/
+cmake-build-*/
+CMakeFiles/
+CMakeScripts/
+CMakeCache.txt
+cmake_install.cmake
+Debug/
+install_manifest.txt
+
+# IDE-specific files
+tags
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.DS_Store
