@@ -27,7 +27,7 @@ struct Roid {
 };
 
 struct World {
-  std::vector<Roid> roids;
+  std::vector<Roid> boids;
   int xBound;
   int yBound;
 };
@@ -75,44 +75,44 @@ double getRandom(double min, double max) {
 void drawRoids(const World& world) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
-  for (const Roid& roid : world.roids) {
-    DrawCircle(roid.x, roid.y, 5, BLACK);
+  for (const Roid& boid : world.boids) {
+    DrawCircle(boid.x, boid.y, 5, BLACK);
   }
 
   EndDrawing();
 }
 
-double getDistance(const Roid& roid, const Roid& other) {
-  double dx = roid.x - other.x;
-  double dy = roid.y - other.y;
+double getDistance(const Roid& boid, const Roid& other) {
+  double dx = boid.x - other.x;
+  double dy = boid.y - other.y;
   return std::sqrt(dx * dx + dy * dy);
 }
 
-// Reacts to other roids with seperationRange. Returns the new velocity vector after seperation.
-std::pair<double, double> seperate(const Roid& roid, const std::vector<Roid>& flock) {
+// Reacts to other boids with seperationRange. Returns the new velocity vector after seperation.
+std::pair<double, double> seperate(const Roid& boid, const std::vector<Roid>& flock) {
   double close_dx = 0;
   double close_dy = 0;
   for (const Roid& other : flock) {
-    if (&roid == &other) continue;
-    if (getDistance(roid, other) <= roid.seperationRange) {
-      close_dx += roid.x - other.x;
-      close_dy += roid.y - other.y;
+    if (&boid == &other) continue;
+    if (getDistance(boid, other) <= boid.seperationRange) {
+      close_dx += boid.x - other.x;
+      close_dy += boid.y - other.y;
     }
   }
 
-  double dvx = close_dx * roid.avoidFactor;
-  double dvy = close_dy * roid.avoidFactor;
+  double dvx = close_dx * boid.avoidFactor;
+  double dvy = close_dy * boid.avoidFactor;
   return {dvx, dvy};
 }
 
-// Reacts to other roids with visualRange. Returns the new velocity vector after seperation.
-std::pair<double, double> align(const Roid& roid, const std::vector<Roid>& flock) {
+// Reacts to other boids with visualRange. Returns the new velocity vector after seperation.
+std::pair<double, double> align(const Roid& boid, const std::vector<Roid>& flock) {
   double vx_avg = 0;
   double vy_avg = 0;
   int neighbors = 0;
   for (const Roid& other : flock) {
-    if (&roid == &other) continue;
-    if (getDistance(roid, other) <= roid.visualRange) {
+    if (&boid == &other) continue;
+    if (getDistance(boid, other) <= boid.visualRange) {
       vx_avg += other.vx;
       vy_avg += other.vy;
       neighbors++;
@@ -123,19 +123,19 @@ std::pair<double, double> align(const Roid& roid, const std::vector<Roid>& flock
     vy_avg = vy_avg / neighbors;
   }
 
-  double dvx = (vx_avg - roid.vx) * roid.alignmentFactor;
-  double dvy = (vy_avg - roid.vy) * roid.alignmentFactor;
+  double dvx = (vx_avg - boid.vx) * boid.alignmentFactor;
+  double dvy = (vy_avg - boid.vy) * boid.alignmentFactor;
   return {dvx, dvy};
 }
 
-// Reacts to other roids with visualRange. Returns the new velocity vector after seperation.
-std::pair<double, double> gather(const Roid& roid, const std::vector<Roid>& flock) {
+// Reacts to other boids with visualRange. Returns the new velocity vector after seperation.
+std::pair<double, double> gather(const Roid& boid, const std::vector<Roid>& flock) {
   double x_avg = 0;
   double y_avg = 0;
   int neighbors = 0;
   for (const Roid& other : flock) {
-    if (&roid == &other) continue;
-    if (getDistance(roid, other) <= roid.visualRange) {
+    if (&boid == &other) continue;
+    if (getDistance(boid, other) <= boid.visualRange) {
       x_avg += other.x;
       y_avg += other.y;
       neighbors++;
@@ -147,69 +147,69 @@ std::pair<double, double> gather(const Roid& roid, const std::vector<Roid>& floc
     y_avg = y_avg / neighbors;
   }
 
-  double dx = (x_avg - roid.x) * roid.gatheringFactor;
-  double dy = (y_avg - roid.y) * roid.gatheringFactor;
+  double dx = (x_avg - boid.x) * boid.gatheringFactor;
+  double dy = (y_avg - boid.y) * boid.gatheringFactor;
   return {dx, dy};
 }
 
-// Reacts to the edges of the roids margins. Returns the NEW VELOCITY (not DELTA).
-std::pair<double, double> avoidMargin(const Roid& roid, int xBound, int yBound) {
-  double nvx = roid.vx;
-  double nvy = roid.vy;
+// Reacts to the edges of the boids margins. Returns the NEW VELOCITY (not DELTA).
+std::pair<double, double> avoidMargin(const Roid& boid, int xBound, int yBound) {
+  double nvx = boid.vx;
+  double nvy = boid.vy;
 
-  if (roid.x < 0 + roid.xMargin.first) nvx += roid.turnFactor;
-  if (roid.x > xBound - roid.xMargin.second) nvx -= roid.turnFactor;
-  if (roid.y < 0 + roid.yMargin.first) nvy += roid.turnFactor;
-  if (roid.y > yBound - roid.yMargin.second) nvy -= roid.turnFactor;
+  if (boid.x < 0 + boid.xMargin.first) nvx += boid.turnFactor;
+  if (boid.x > xBound - boid.xMargin.second) nvx -= boid.turnFactor;
+  if (boid.y < 0 + boid.yMargin.first) nvy += boid.turnFactor;
+  if (boid.y > yBound - boid.yMargin.second) nvy -= boid.turnFactor;
 
   return {nvx, nvy};
 }
 
-std::pair<double, double> checkSpeed(const Roid& roid) {
-  double speed = sqrt(roid.vx * roid.vx + roid.vy * roid.vy);
-  double vx_new = roid.vx;
-  double vy_new = roid.vy;
-  if (speed == 0) return {roid.vx + 2, roid.vy + 2};
-  if (speed > roid.maxSpeed) {
-    vx_new = (roid.vx / speed) * roid.maxSpeed;
-    vy_new = (roid.vy / speed) * roid.maxSpeed;
-  } else if (speed < roid.minSpeed) {
-    vx_new = (roid.vx / speed) * roid.minSpeed;
-    vy_new = (roid.vy / speed) * roid.minSpeed;
+std::pair<double, double> checkSpeed(const Roid& boid) {
+  double speed = sqrt(boid.vx * boid.vx + boid.vy * boid.vy);
+  double vx_new = boid.vx;
+  double vy_new = boid.vy;
+  if (speed == 0) return {boid.vx + 2, boid.vy + 2};
+  if (speed > boid.maxSpeed) {
+    vx_new = (boid.vx / speed) * boid.maxSpeed;
+    vy_new = (boid.vy / speed) * boid.maxSpeed;
+  } else if (speed < boid.minSpeed) {
+    vx_new = (boid.vx / speed) * boid.minSpeed;
+    vy_new = (boid.vy / speed) * boid.minSpeed;
   }
   return {vx_new, vy_new};
 }
 
 void processRoids(World& world) {
-  // Tick each roid's clock
-  for (Roid& roid : world.roids) {
+  // Tick each boid's clock
+  for (Roid& boid : world.boids) {
     // Seperation
-    std::pair<double, double> deltaV = seperate(roid, world.roids);
-    roid.vx += deltaV.first;
-    roid.vy += deltaV.second;
+    std::pair<double, double> deltaV = seperate(boid, world.boids);
+    boid.vx += deltaV.first;
+    boid.vy += deltaV.second;
     // Alignment
-    deltaV = align(roid, world.roids);
-    roid.vx += deltaV.first;
-    roid.vy += deltaV.second;
+    deltaV = align(boid, world.boids);
+    boid.vx += deltaV.first;
+    boid.vy += deltaV.second;
     // Gathering
-    deltaV = gather(roid, world.roids);
-    roid.vx += deltaV.first;
-    roid.vy += deltaV.second;
+    deltaV = gather(boid, world.boids);
+    boid.vx += deltaV.first;
+    boid.vy += deltaV.second;
     // Avoid edge
-    std::pair<double, double> newV = avoidMargin(roid, world.xBound, world.yBound);
-    roid.vx = newV.first;
-    roid.vy = newV.second;
+    std::pair<double, double> newV = avoidMargin(boid, world.xBound, world.yBound);
+    boid.vx = newV.first;
+    boid.vy = newV.second;
     // Check speed
-    newV = checkSpeed(roid);
-    roid.vx = newV.first;
-    roid.vy = newV.second;
+    newV = checkSpeed(boid);
+    boid.vx = newV.first;
+    boid.vy = newV.second;
     // Update position
-    roid.x = roid.x + roid.vx;
-    roid.y = roid.y + roid.vy;
+    boid.x = boid.x + boid.vx;
+    boid.y = boid.y + boid.vy;
 
     //std::cout << "New Pos: (";
-    //std::cout << roid.x << ", ";
-    //std::cout << roid.y << ")" << std::endl;
+    //std::cout << boid.x << ", ";
+    //std::cout << boid.y << ")" << std::endl;
     //std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 }
@@ -242,7 +242,7 @@ void run(const Options& options) {
    double vx = speed * std::cos(angle);
    double vy = speed * std::sin(angle);
 
-   Roid roid{
+   Roid boid{
      x, y,     // Position
      vx, vy,   // Velocity components
      15,        // separationRange
@@ -259,7 +259,7 @@ void run(const Options& options) {
       getRandom(options.minYMargin.second, options.maxYMargin.second)}  // yMargin
    };
 
-   world.roids.push_back(roid);
+   world.boids.push_back(boid);
  }
 
  mainLoop(world);

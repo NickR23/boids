@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(roids)
+project(boids)
 
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -9,14 +9,14 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 find_package(raylib REQUIRED)
 
 # Add executable
-add_executable(roids main.cpp)
+add_executable(boids main.cpp)
 
 # Link libraries
-target_link_libraries(roids PRIVATE raylib)
+target_link_libraries(boids PRIVATE raylib)
 
 # In case you need extra system libs (on macOS, raylib often needs these)
 if(APPLE)
-  target_link_libraries(roids PRIVATE
+  target_link_libraries(boids PRIVATE
     "-framework OpenGL"
     "-framework Cocoa"
     "-framework IOKit"
