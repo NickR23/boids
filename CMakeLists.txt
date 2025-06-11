@@ -1,25 +1,24 @@
 cmake_minimum_required(VERSION 3.20)
-project(boids)
+project(MetalBoids)
 
-# Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Add raylib (assumes installed via Homebrew in default /opt/homebrew/)
+# Metal-cpp headers
+include_directories(external/metal-cpp)
+
+# Find required frameworks
+find_library(METAL_LIBRARY Metal)
+find_library(FOUNDATION_LIBRARY Foundation)
+find_library(QUARTZCORE_LIBRARY QuartzCore)
+
+# Find raylib
 find_package(raylib REQUIRED)
 
-# Add executable
-add_executable(boids main.cpp)
+add_executable(boids src/main.cpp)
 
-# Link libraries
-target_link_libraries(boids PRIVATE raylib)
-
-# In case you need extra system libs (on macOS, raylib often needs these)
-if(APPLE)
-  target_link_libraries(boids PRIVATE
-    "-framework OpenGL"
-    "-framework Cocoa"
-    "-framework IOKit"
-    "-framework CoreVideo"
-  )
-endif()
+target_link_libraries(boids
+    raylib
+    ${METAL_LIBRARY}
+    ${FOUNDATION_LIBRARY}
+    ${QUARTZCORE_LIBRARY}
+)
