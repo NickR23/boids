@@ -234,7 +234,6 @@ void drawRoids(const World& world) {
 
 void mainLoop(World& world) {
   InitWindow(world.xBound, world.yBound, "Boids");
-  SetTargetFPS(60);
   while (!WindowShouldClose()) {
     processRoidsGPU(world);
     drawRoids(world);
@@ -244,10 +243,22 @@ void mainLoop(World& world) {
 }
 
 void run(const Options& options) {
+ InitWindow(10,10,"Setting Up Boids");
+ SetWindowState(FLAG_WINDOW_RESIZABLE);
+ SetTargetFPS(60);
+
  World world;
- world.xBound = 1800;
- world.yBound = 1800;
+ int maxWindowWidth = GetMonitorWidth(0) - 100; 
+ int maxWindowHeight = GetMonitorHeight(0) - 150;
+ CloseWindow(); // Hacky way to get monitor size.
+
+ world.xBound = std::min(1800, maxWindowWidth);
+ world.yBound = std::min(1800, maxWindowHeight);
  world.scale = 0.5f;
+ if (world.xBound < 1800 || world.yBound < 1800) {
+   world.scale = std::min((float)world.xBound / 1800.0f,
+       (float)world.yBound / 1800.0f) * 0.5f;
+ }
 
  if (!initMetal(world)) {
    std::cerr << "Failed to init Metal" << std::endl;
