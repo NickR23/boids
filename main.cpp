@@ -22,8 +22,7 @@ struct Roid {
   float maxSpeed;
   float minSpeed;
 
-  std::pair<int, int> xMargin;
-  std::pair<int, int> yMargin;
+  float margins[4]; // {Left, Right, Bottom Top}
 };
 
 struct World {
@@ -157,10 +156,10 @@ std::pair<float, float> avoidMargin(const Roid& boid, int xBound, int yBound) {
   float nvx = boid.vx;
   float nvy = boid.vy;
 
-  if (boid.x < 0 + boid.xMargin.first) nvx += boid.turnFactor;
-  if (boid.x > xBound - boid.xMargin.second) nvx -= boid.turnFactor;
-  if (boid.y < 0 + boid.yMargin.first) nvy += boid.turnFactor;
-  if (boid.y > yBound - boid.yMargin.second) nvy -= boid.turnFactor;
+  if (boid.x < 0 + boid.margins[0]) nvx += boid.turnFactor;
+  if (boid.x > xBound - boid.margins[1]) nvx -= boid.turnFactor;
+  if (boid.y < 0 + boid.margins[2]) nvy += boid.turnFactor;
+  if (boid.y > yBound - boid.margins[3]) nvy -= boid.turnFactor;
 
   return {nvx, nvy};
 }
@@ -253,8 +252,7 @@ void run(const Options& options) {
      0.3,      // turnFactor
      3,        // maxSpeed
      1,        // minSpeed
-     {100, 100},
-     {100, 100}
+     {100, 100, 100, 100}
    };
 
    world.boids.push_back(boid);
