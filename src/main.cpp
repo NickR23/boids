@@ -7,10 +7,13 @@
 #include <raylib.h>
 
 #define NS_PRIVATE_IMPLEMENTATION
+#define CA_PRIVATE_IMPLEMENTATION
 #define MTL_PRIVATE_IMPLEMENTATION
 #include <Metal/Metal.hpp>
+#include <Foundation/Foundation.hpp>
+#include <QuartzCore/QuartzCore.hpp>
 
-struct Roid {
+struct Boid {
   float position[2]; // x, y
   float velocity[2]; // vx, vy
 
@@ -28,9 +31,37 @@ struct Roid {
 };
 
 struct WorldParams {
-  std::vector<Roid> boids;
+  uint32_t numBoids;
   float xBound;
   float yBound;
+};
+
+class World {
+  // TODO access qualifiers
+  public:
+  std::vector<Boid> boids;
+  int xBound, yBound;
+
+
+  MTL::Device* device;
+  MTL::CommandQueue* commandQueue;
+  MTL::ComputePipelineState* pipelineState;
+  MTL::Buffer* boidBuffer;
+  MTL::Buffer* paramsBuffer;
+
+  World() : device(nullptr), commandQueue(nullptr), pipelineState(nullptr),
+          boidBuffer(nullptr), paramsBuffer(nullptr) {};
+  ~World() {
+    cleanup();
+  }
+
+  void cleanup() {
+    if (boidBuffer) boidBuffer->release();
+    if (paramsBuffer) paramsBuffer->release();
+    if (pipelineState) pipelineState->release();
+    if (commandQueue) commandQueue->release();
+    if (device) device->release();
+  }
 };
 
 struct Options {
@@ -73,154 +104,139 @@ float getRandom(float min, float max) {
   return dis(gen);
 }
 
-void drawRoids(const WorldParams& world) {
+bool initMetal(World& world) {
+  world.device = MTL::CreateSystemDefaultDevice();
+  if (!world.device) {
+    std::cerr << "Failed to create Metal device." << std::endl;
+    return false;
+  }
+
+  world.commandQueue = world.device->newCommandQueue();
+
+  NS::Error* error = nullptr;
+  MTL::Library* library = world.device->newDefaultLibrary();
+  if (!library) {
+    std::cerr << "Failed to create Metal library." << std::endl;
+    return false;
+  }
+
+  MTL::Function* kernelFunction = library->newFunction (
+      NS::String::string("updateBoids",
+        NS::UTF8StringEncoding));
+
+  world.pipelineState = world.device->newComputePipelineState(kernelFunction, &error);
+  if (!world.pipelineState) {
+    std::cerr << "Failed to create compute pipeline." << std::endl;
+    return false;
+  }
+
+  library->release();
+  kernelFunction->release();
+  return true;
+}
+
+void setupMetalBuffers(World& world) {
+  size_t numBoids = world.boids.size();
+
+  world.boidBuffer = world.device->newBuffer(
+      sizeof(Boid) * numBoids,
+      MTL::ResourceStorageModeShared);
+
+  world.paramsBuffer = world.device->newBuffer(
+      sizeof(WorldParams),
+      MTL::ResourceStorageModeShared);
+
+  WorldParams* params = (WorldParams*)world.paramsBuffer->contents();
+  params->numBoids = static_cast<uint32_t>(numBoids);
+  params->xBound = world.xBound;
+  params->yBound = world.yBound;
+}
+
+void copyBoidsToGPU(World& world) {
+  Boid* gpuBoids = (Boid*)world.boidBuffer->contents();
+  for (size_t i = 0; i < world.boids.size(); i++) {
+    const Boid& boid = world.boids[i];
+    Boid& gpuBoid = gpuBoids[i];
+    
+    gpuBoid.position[0] = boid.position[0];
+    gpuBoid.position[1] = boid.position[1];
+
+    gpuBoid.velocity[0] = boid.velocity[0];
+    gpuBoid.velocity[1] = boid.velocity[1];
+
+    gpuBoid.seperationRange = boid.seperationRange;
+    gpuBoid.avoidFactor = boid.avoidFactor;
+    gpuBoid.visualRange = boid.visualRange;
+    gpuBoid.alignmentFactor = boid.alignmentFactor;
+    gpuBoid.gatheringFactor = boid.gatheringFactor;
+    gpuBoid.turnFactor = boid.turnFactor;
+    gpuBoid.maxSpeed = boid.maxSpeed;
+    gpuBoid.minSpeed = boid.minSpeed;
+
+    gpuBoid.margins[0] = boid.margins[0];
+    gpuBoid.margins[1] = boid.margins[1];
+    gpuBoid.margins[2] = boid.margins[2];
+    gpuBoid.margins[3] = boid.margins[3];
+  }
+}
+
+// TODO remove the need for this. We should have direct
+// access to the gpu's buffers.
+void copyBoidsFromGPU(World& world) {
+  Boid* gpuBoids = (Boid*)world.boidBuffer->contents();
+  for (size_t i = 0; i < world.boids.size(); i++) {
+    Boid& boid = world.boids[i];
+    const Boid& gpuBoid = gpuBoids[i];
+
+    boid.position[0] = gpuBoid.position[0];
+    boid.position[1] = gpuBoid.position[1];
+
+    boid.velocity[0] = gpuBoid.velocity[0];
+    boid.velocity[1] = gpuBoid.velocity[1];
+  }
+}
+
+void processRoidsGPU(World& world) {
+  copyBoidsToGPU(world);
+
+  MTL::CommandBuffer* commandBuffer = world.commandQueue->commandBuffer();
+  MTL::ComputeCommandEncoder* encoder = commandBuffer->computeCommandEncoder();
+
+  encoder->setComputePipelineState(world.pipelineState);
+  encoder->setBuffer(world.boidBuffer, 0, 0);
+  encoder->setBuffer(world.paramsBuffer, 0, 1);
+
+  NS::UInteger numBoids = world.boids.size();
+  NS::UInteger threadGroupSize = world.pipelineState->maxTotalThreadsPerThreadgroup();
+  if (threadGroupSize > numBoids) threadGroupSize = numBoids;
+
+  MTL::Size threadsPerGroup = MTL::Size(threadGroupSize, 1, 1);
+  MTL::Size numThreadsGroups = MTL::Size((numBoids + threadGroupSize - 1) / threadGroupSize, 1, 1);
+
+  encoder->dispatchThreadgroups(numThreadsGroups, threadsPerGroup);
+  encoder->endEncoding();
+
+  commandBuffer->commit();
+  commandBuffer->waitUntilCompleted();
+
+  copyBoidsFromGPU(world);
+}
+
+void drawRoids(const World& world) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
-  for (const Roid& boid : world.boids) {
+  for (const Boid& boid : world.boids) {
     DrawCircle(boid.position[0], boid.position[1], 5, BLACK);
   }
 
   EndDrawing();
 }
 
-float getDistance(const Roid& boid, const Roid& other) {
-  float dx = boid.position[0] - other.position[0];
-  float dy = boid.position[1] - other.position[1];
-  return std::sqrt(dx * dx + dy * dy);
-}
-
-// Reacts to other boids with seperationRange. Returns the new velocity vector after seperation.
-std::pair<float, float> seperate(const Roid& boid, const std::vector<Roid>& flock) {
-  float close_dx = 0;
-  float close_dy = 0;
-  for (const Roid& other : flock) {
-    if (&boid == &other) continue;
-    if (getDistance(boid, other) <= boid.seperationRange) {
-      close_dx += boid.position[0] - other.position[0];
-      close_dy += boid.position[1] - other.position[1];
-    }
-  }
-
-  float dvx = close_dx * boid.avoidFactor;
-  float dvy = close_dy * boid.avoidFactor;
-  return {dvx, dvy};
-}
-
-// Reacts to other boids with visualRange. Returns the new velocity vector after seperation.
-std::pair<float, float> align(const Roid& boid, const std::vector<Roid>& flock) {
-  float vx_avg = 0;
-  float vy_avg = 0;
-  int neighbors = 0;
-  for (const Roid& other : flock) {
-    if (&boid == &other) continue;
-    if (getDistance(boid, other) <= boid.visualRange) {
-      vx_avg += other.velocity[0];
-      vy_avg += other.velocity[1];
-      neighbors++;
-    }
-  }
-  if (neighbors > 0) {
-    vx_avg = vx_avg / neighbors;
-    vy_avg = vy_avg / neighbors;
-  }
-
-  float dvx = (vx_avg - boid.velocity[0]) * boid.alignmentFactor;
-  float dvy = (vy_avg - boid.velocity[1]) * boid.alignmentFactor;
-  return {dvx, dvy};
-}
-
-// Reacts to other boids with visualRange. Returns the new velocity vector after seperation.
-std::pair<float, float> gather(const Roid& boid, const std::vector<Roid>& flock) {
-  float x_avg = 0;
-  float y_avg = 0;
-  int neighbors = 0;
-  for (const Roid& other : flock) {
-    if (&boid == &other) continue;
-    if (getDistance(boid, other) <= boid.visualRange) {
-      x_avg += other.position[0];
-      y_avg += other.position[1];
-      neighbors++;
-    }
-  }
-
-  if (neighbors > 0) {
-    x_avg = x_avg / neighbors;
-    y_avg = y_avg / neighbors;
-  }
-
-  float dx = (x_avg - boid.position[0]) * boid.gatheringFactor;
-  float dy = (y_avg - boid.position[1]) * boid.gatheringFactor;
-  return {dx, dy};
-}
-
-// Reacts to the edges of the boids margins. Returns the NEW VELOCITY (not DELTA).
-std::pair<float, float> avoidMargin(const Roid& boid, int xBound, int yBound) {
-  float nvx = boid.velocity[0];
-  float nvy = boid.velocity[1];
-
-  if (boid.position[0] < 0 + boid.margins[0]) nvx += boid.turnFactor;
-  if (boid.position[0] > xBound - boid.margins[1]) nvx -= boid.turnFactor;
-  if (boid.position[1] < 0 + boid.margins[2]) nvy += boid.turnFactor;
-  if (boid.position[1] > yBound - boid.margins[3]) nvy -= boid.turnFactor;
-
-  return {nvx, nvy};
-}
-
-std::pair<float, float> checkSpeed(const Roid& boid) {
-  float speed = sqrt(boid.velocity[0] * boid.velocity[0] + boid.velocity[1] * boid.velocity[1]);
-  float vx_new = boid.velocity[0];
-  float vy_new = boid.velocity[1];
-  if (speed == 0) return {boid.velocity[0] + 2, boid.velocity[1] + 2};
-  if (speed > boid.maxSpeed) {
-    vx_new = (boid.velocity[0] / speed) * boid.maxSpeed;
-    vy_new = (boid.velocity[1] / speed) * boid.maxSpeed;
-  } else if (speed < boid.minSpeed) {
-    vx_new = (boid.velocity[0] / speed) * boid.minSpeed;
-    vy_new = (boid.velocity[1] / speed) * boid.minSpeed;
-  }
-  return {vx_new, vy_new};
-}
-
-void processRoids(WorldParams& world) {
-  // Tick each boid's clock
-  for (Roid& boid : world.boids) {
-    // Seperation
-    std::pair<float, float> deltaV = seperate(boid, world.boids);
-    boid.velocity[0] += deltaV.first;
-    boid.velocity[1] += deltaV.second;
-    // Alignment
-    deltaV = align(boid, world.boids);
-    boid.velocity[0] += deltaV.first;
-    boid.velocity[1] += deltaV.second;
-    // Gathering
-    deltaV = gather(boid, world.boids);
-    boid.velocity[0] += deltaV.first;
-    boid.velocity[1] += deltaV.second;
-    // Avoid edge
-    std::pair<float, float> newV = avoidMargin(boid, world.xBound, world.yBound);
-    boid.velocity[0] = newV.first;
-    boid.velocity[1] = newV.second;
-    // Check speed
-    newV = checkSpeed(boid);
-    boid.velocity[0] = newV.first;
-    boid.velocity[1] = newV.second;
-    // Update position
-    boid.position[0] = boid.position[0] + boid.velocity[0];
-    boid.position[1] = boid.position[1] + boid.velocity[1];
-
-    //std::cout << "New Pos: (";
-    //std::cout << boid.position[0] << ", ";
-    //std::cout << boid.position[1] << ")" << std::endl;
-    //std::this_thread::sleep_for(std::chrono::seconds(2));
-  }
-}
-
-// Should world be limited to this scope??
-void mainLoop(WorldParams& world) {
+void mainLoop(World& world) {
   InitWindow(world.xBound, world.yBound, "Boids");
   SetTargetFPS(60);
   while (!WindowShouldClose()) {
-    processRoids(world);
+    processRoidsGPU(world);
     drawRoids(world);
   }
 
@@ -228,9 +244,14 @@ void mainLoop(WorldParams& world) {
 }
 
 void run(const Options& options) {
- WorldParams world;
+ World world;
  world.xBound = 900;
  world.yBound = 900;
+
+ if (!initMetal(world)) {
+   std::cerr << "Failed to init Metal" << std::endl;
+   return;
+ }
 
  for (int i = 0; i < options.numRoids; i++) {
    // Random position across screen
@@ -243,7 +264,7 @@ void run(const Options& options) {
    float vx = speed * std::cos(angle);
    float vy = speed * std::sin(angle);
 
-   Roid boid{
+   Boid boid{
      {x, y},     // Position
      {vx, vy},   // Velocity components
      15,        // separationRange
@@ -260,12 +281,14 @@ void run(const Options& options) {
    world.boids.push_back(boid);
  }
 
+ setupMetalBuffers(world);
+
  mainLoop(world);
 }
 
 int main() {
   Options options;
-  options.numRoids = 500;
+  options.numRoids = 19999;
   options.maxSpeed = 3;
   options.minSpeed = 2;
   options.maxTurnFactor = 0.2;
