@@ -41,7 +41,7 @@ class World {
   public:
   std::vector<Boid> boids;
   int xBound, yBound;
-
+  float scale = 1.0f;
 
   MTL::Device* device;
   MTL::CommandQueue* commandQueue;
@@ -226,7 +226,7 @@ void drawRoids(const World& world) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
   for (const Boid& boid : world.boids) {
-    DrawCircle(boid.position[0], boid.position[1], 5, BLACK);
+    DrawCircle(boid.position[0], boid.position[1], 5 * world.scale, BLACK);
   }
 
   EndDrawing();
@@ -245,8 +245,9 @@ void mainLoop(World& world) {
 
 void run(const Options& options) {
  World world;
- world.xBound = 900;
- world.yBound = 900;
+ world.xBound = 1800;
+ world.yBound = 1800;
+ world.scale = 0.5f;
 
  if (!initMetal(world)) {
    std::cerr << "Failed to init Metal" << std::endl;
@@ -255,8 +256,8 @@ void run(const Options& options) {
 
  for (int i = 0; i < options.numRoids; i++) {
    // Random position across screen
-   float x = getRandom(50, 750);
-   float y = getRandom(50, 750);
+   float x = getRandom(100, 1700);
+   float y = getRandom(100, 1700);
 
    // Random velocity with proper direction and speed
    float angle = getRandom(0, 6.28318530718); // 0 to 2π radians
@@ -288,13 +289,13 @@ void run(const Options& options) {
 
 int main() {
   Options options;
-  options.numRoids = 19999;
-  options.maxSpeed = 3;
-  options.minSpeed = 2;
-  options.maxTurnFactor = 0.2;
+  options.numRoids = 9999;
+  options.maxSpeed = 6;
+  options.minSpeed = 4;
+  options.maxTurnFactor = 0.8;
   options.minTurnFactor = 0.2;
-  options.minVisualRange = 20;
-  options.maxVisualRange = 20;
+  options.minVisualRange = 40;
+  options.maxVisualRange = 80;
 
   run(options);
   return 0;
