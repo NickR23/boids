@@ -82,12 +82,10 @@ void drawRoids(const World& world) {
   EndDrawing();
 }
 
-uint8_t getDistance(const Roid& roid, const Roid& other) {
+double getDistance(const Roid& roid, const Roid& other) {
   double dx = roid.x - other.x;
   double dy = roid.y - other.y;
-
-  double squraredDistance = std::pow(dx, 2) + std::pow(dy, 2);
-  return static_cast<uint8_t>(std::sqrt(squraredDistance));
+  return std::sqrt(dx * dx + dy * dy);
 }
 
 // Reacts to other roids with seperationRange. Returns the new velocity vector after seperation.
@@ -247,13 +245,13 @@ void run(const Options& options) {
    Roid roid{
      x, y,     // Position
      vx, vy,   // Velocity components
-     5,        // separationRange
-     0.005,    // avoidFactor
-     10,       // visualRange
-     0.2,      // alignmentFactor
-     0.04,     // gatheringFactor
-     0.7,      // turnFactor
-     4,        // maxSpeed
+     15,        // separationRange
+     0.001,    // avoidFactor
+     40,       // visualRange
+     0.05,      // alignmentFactor
+     0.005,     // gatheringFactor
+     0.3,      // turnFactor
+     3,        // maxSpeed
      1,        // minSpeed
      {getRandom(options.minXMargin.first, options.maxXMargin.first),
       getRandom(options.minXMargin.second, options.maxXMargin.second)}, // xMargin
@@ -269,7 +267,7 @@ void run(const Options& options) {
 
 int main() {
   Options options;
-  options.numRoids = 600;
+  options.numRoids = 900;
   options.maxSpeed = 3;
   options.minSpeed = 2;
   options.maxTurnFactor = 0.2;
