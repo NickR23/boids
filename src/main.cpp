@@ -6,6 +6,11 @@
 #include <thread>
 #include <raylib.h>
 
+#define NS_PRIVATE_IMPLEMENTATION
+#define MTL_PRIVATE_IMPLEMENTATION
+#include <Metal/Metal.hpp>
+using namespace metal;
+
 struct Roid {
   float position[2]; // x, y
   float velocity[2]; // vx, vy
