@@ -7,10 +7,8 @@
 #include <raylib.h>
 
 struct Roid {
-  float x;
-  float y;
-  float vx; // velocity
-  float vy; // velocity
+  float position[2]; // x, y
+  float velocity[2]; // vx, vy
 
   float seperationRange;
   float avoidFactor;
@@ -75,15 +73,15 @@ void drawRoids(const World& world) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
   for (const Roid& boid : world.boids) {
-    DrawCircle(boid.x, boid.y, 5, BLACK);
+    DrawCircle(boid.position[0], boid.position[1], 5, BLACK);
   }
 
   EndDrawing();
 }
 
 float getDistance(const Roid& boid, const Roid& other) {
-  float dx = boid.x - other.x;
-  float dy = boid.y - other.y;
+  float dx = boid.position[0] - other.position[0];
+  float dy = boid.position[1] - other.position[1];
   return std::sqrt(dx * dx + dy * dy);
 }
 
@@ -94,8 +92,8 @@ std::pair<float, float> seperate(const Roid& boid, const std::vector<Roid>& floc
   for (const Roid& other : flock) {
     if (&boid == &other) continue;
     if (getDistance(boid, other) <= boid.seperationRange) {
-      close_dx += boid.x - other.x;
-      close_dy += boid.y - other.y;
+      close_dx += boid.position[0] - other.position[0];
+      close_dy += boid.position[1] - other.position[1];
     }
   }
 
@@ -112,8 +110,8 @@ std::pair<float, float> align(const Roid& boid, const std::vector<Roid>& flock) 
   for (const Roid& other : flock) {
     if (&boid == &other) continue;
     if (getDistance(boid, other) <= boid.visualRange) {
-      vx_avg += other.vx;
-      vy_avg += other.vy;
+      vx_avg += other.velocity[0];
+      vy_avg += other.velocity[1];
       neighbors++;
     }
   }
@@ -122,8 +120,8 @@ std::pair<float, float> align(const Roid& boid, const std::vector<Roid>& flock) 
     vy_avg = vy_avg / neighbors;
   }
 
-  float dvx = (vx_avg - boid.vx) * boid.alignmentFactor;
-  float dvy = (vy_avg - boid.vy) * boid.alignmentFactor;
+  float dvx = (vx_avg - boid.velocity[0]) * boid.alignmentFactor;
+  float dvy = (vy_avg - boid.velocity[1]) * boid.alignmentFactor;
   return {dvx, dvy};
 }
 
@@ -135,8 +133,8 @@ std::pair<float, float> gather(const Roid& boid, const std::vector<Roid>& flock)
   for (const Roid& other : flock) {
     if (&boid == &other) continue;
     if (getDistance(boid, other) <= boid.visualRange) {
-      x_avg += other.x;
-      y_avg += other.y;
+      x_avg += other.position[0];
+      y_avg += other.position[1];
       neighbors++;
     }
   }
@@ -146,35 +144,35 @@ std::pair<float, float> gather(const Roid& boid, const std::vector<Roid>& flock)
     y_avg = y_avg / neighbors;
   }
 
-  float dx = (x_avg - boid.x) * boid.gatheringFactor;
-  float dy = (y_avg - boid.y) * boid.gatheringFactor;
+  float dx = (x_avg - boid.position[0]) * boid.gatheringFactor;
+  float dy = (y_avg - boid.position[1]) * boid.gatheringFactor;
   return {dx, dy};
 }
 
 // Reacts to the edges of the boids margins. Returns the NEW VELOCITY (not DELTA).
 std::pair<float, float> avoidMargin(const Roid& boid, int xBound, int yBound) {
-  float nvx = boid.vx;
-  float nvy = boid.vy;
+  float nvx = boid.velocity[0];
+  float nvy = boid.velocity[1];
 
-  if (boid.x < 0 + boid.margins[0]) nvx += boid.turnFactor;
-  if (boid.x > xBound - boid.margins[1]) nvx -= boid.turnFactor;
-  if (boid.y < 0 + boid.margins[2]) nvy += boid.turnFactor;
-  if (boid.y > yBound - boid.margins[3]) nvy -= boid.turnFactor;
+  if (boid.position[0] < 0 + boid.margins[0]) nvx += boid.turnFactor;
+  if (boid.position[0] > xBound - boid.margins[1]) nvx -= boid.turnFactor;
+  if (boid.position[1] < 0 + boid.margins[2]) nvy += boid.turnFactor;
+  if (boid.position[1] > yBound - boid.margins[3]) nvy -= boid.turnFactor;
 
   return {nvx, nvy};
 }
 
 std::pair<float, float> checkSpeed(const Roid& boid) {
-  float speed = sqrt(boid.vx * boid.vx + boid.vy * boid.vy);
-  float vx_new = boid.vx;
-  float vy_new = boid.vy;
-  if (speed == 0) return {boid.vx + 2, boid.vy + 2};
+  float speed = sqrt(boid.velocity[0] * boid.velocity[0] + boid.velocity[1] * boid.velocity[1]);
+  float vx_new = boid.velocity[0];
+  float vy_new = boid.velocity[1];
+  if (speed == 0) return {boid.velocity[0] + 2, boid.velocity[1] + 2};
   if (speed > boid.maxSpeed) {
-    vx_new = (boid.vx / speed) * boid.maxSpeed;
-    vy_new = (boid.vy / speed) * boid.maxSpeed;
+    vx_new = (boid.velocity[0] / speed) * boid.maxSpeed;
+    vy_new = (boid.velocity[1] / speed) * boid.maxSpeed;
   } else if (speed < boid.minSpeed) {
-    vx_new = (boid.vx / speed) * boid.minSpeed;
-    vy_new = (boid.vy / speed) * boid.minSpeed;
+    vx_new = (boid.velocity[0] / speed) * boid.minSpeed;
+    vy_new = (boid.velocity[1] / speed) * boid.minSpeed;
   }
   return {vx_new, vy_new};
 }
@@ -184,31 +182,31 @@ void processRoids(World& world) {
   for (Roid& boid : world.boids) {
     // Seperation
     std::pair<float, float> deltaV = seperate(boid, world.boids);
-    boid.vx += deltaV.first;
-    boid.vy += deltaV.second;
+    boid.velocity[0] += deltaV.first;
+    boid.velocity[1] += deltaV.second;
     // Alignment
     deltaV = align(boid, world.boids);
-    boid.vx += deltaV.first;
-    boid.vy += deltaV.second;
+    boid.velocity[0] += deltaV.first;
+    boid.velocity[1] += deltaV.second;
     // Gathering
     deltaV = gather(boid, world.boids);
-    boid.vx += deltaV.first;
-    boid.vy += deltaV.second;
+    boid.velocity[0] += deltaV.first;
+    boid.velocity[1] += deltaV.second;
     // Avoid edge
     std::pair<float, float> newV = avoidMargin(boid, world.xBound, world.yBound);
-    boid.vx = newV.first;
-    boid.vy = newV.second;
+    boid.velocity[0] = newV.first;
+    boid.velocity[1] = newV.second;
     // Check speed
     newV = checkSpeed(boid);
-    boid.vx = newV.first;
-    boid.vy = newV.second;
+    boid.velocity[0] = newV.first;
+    boid.velocity[1] = newV.second;
     // Update position
-    boid.x = boid.x + boid.vx;
-    boid.y = boid.y + boid.vy;
+    boid.position[0] = boid.position[0] + boid.velocity[0];
+    boid.position[1] = boid.position[1] + boid.velocity[1];
 
     //std::cout << "New Pos: (";
-    //std::cout << boid.x << ", ";
-    //std::cout << boid.y << ")" << std::endl;
+    //std::cout << boid.position[0] << ", ";
+    //std::cout << boid.position[1] << ")" << std::endl;
     //std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 }
@@ -242,8 +240,8 @@ void run(const Options& options) {
    float vy = speed * std::sin(angle);
 
    Roid boid{
-     x, y,     // Position
-     vx, vy,   // Velocity components
+     {x, y},     // Position
+     {vx, vy},   // Velocity components
      15,        // separationRange
      0.001,    // avoidFactor
      40,       // visualRange
