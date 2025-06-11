@@ -229,6 +229,9 @@ void drawRoids(const World& world) {
     DrawCircle(boid.position[0], boid.position[1], 5 * world.scale, BLACK);
   }
 
+  DrawFPS(10, 10);
+
+
   EndDrawing();
 }
 
@@ -300,7 +303,7 @@ void run(const Options& options) {
 
 int main() {
   Options options;
-  options.numRoids = 9999;
+  options.numRoids = 29999;
   options.maxSpeed = 6;
   options.minSpeed = 4;
   options.maxTurnFactor = 0.8;
