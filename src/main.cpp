@@ -197,7 +197,6 @@ void copyBoidsFromGPU(World& world) {
 }
 
 void processRoidsGPU(World& world) {
-  copyBoidsToGPU(world);
 
   MTL::CommandBuffer* commandBuffer = world.commandQueue->commandBuffer();
   MTL::ComputeCommandEncoder* encoder = commandBuffer->computeCommandEncoder();
@@ -219,24 +218,26 @@ void processRoidsGPU(World& world) {
   commandBuffer->commit();
   commandBuffer->waitUntilCompleted();
 
-  copyBoidsFromGPU(world);
+  //copyBoidsFromGPU(world);
 }
 
 void drawRoids(const World& world) {
   BeginDrawing();
   ClearBackground(RAYWHITE);
-  for (const Boid& boid : world.boids) {
-    DrawCircle(boid.position[0], boid.position[1], 5 * world.scale, BLACK);
+  Boid* gpuBoids = (Boid*)world.boidBuffer->contents();
+  for (size_t i = 0; i < world.boids.size(); i++) {
+    DrawCircle(gpuBoids[i].position[0], gpuBoids[i].position[1], 5 * world.scale, BLACK);
   }
 
   DrawFPS(10, 10);
-
+  DrawText(TextFormat("Boids: %d", (int)world.boids.size()), 10, 35, 20, GREEN);
 
   EndDrawing();
 }
 
 void mainLoop(World& world) {
   InitWindow(world.xBound, world.yBound, "Boids");
+  copyBoidsToGPU(world);
   while (!WindowShouldClose()) {
     processRoidsGPU(world);
     drawRoids(world);
@@ -248,7 +249,7 @@ void mainLoop(World& world) {
 void run(const Options& options) {
  InitWindow(10,10,"Setting Up Boids");
  SetWindowState(FLAG_WINDOW_RESIZABLE);
- SetTargetFPS(60);
+ SetTargetFPS(120);
 
  World world;
  int maxWindowWidth = GetMonitorWidth(0) - 100; 
@@ -303,7 +304,7 @@ void run(const Options& options) {
 
 int main() {
   Options options;
-  options.numRoids = 29999;
+  options.numRoids = 9999;
   options.maxSpeed = 6;
   options.minSpeed = 4;
   options.maxTurnFactor = 0.8;
